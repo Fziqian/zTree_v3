@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>测试病例文件系统</title>
+    <link rel="stylesheet" href="../../css/zTreeStyle/zTreeStyle.css" type="text/css">
+    <script type="text/javascript" src="../../js/jquery-1.11.3.min.js"></script>
+    <script type="text/javascript" src="../../js/jquery.ztree.all.js"></script>
+    <script type="text/javascript" src="zTreeSettings.js"></script>
+    <style>
+        .container {
+            width: 300px;
+            height: 500px;
+            margin: auto;
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <button id="btn">导入</button>
+        <button id='newDir'>新建文件夹</button>
+        <!-- <button id="delete">删除</button> -->
+        <ul id="treeDemo" class="ztree"></ul>
+    </div>
+    <script>
+        $(function () {
+            var setting = {
+                data: {
+                    keep: {
+                        leaf: true,
+                        parent: true
+                    },
+                    simpleData: {
+                        enable: true,
+                        idKey: "ID",
+                        pIdKey: "pId"
+                    }
+                },
+                edit: {
+                    enable: true,
+                    showRemoveBtn: true,
+                    showRenameBtn: function (treeId, treeNode) {
+                        return treeNode.isParent
+                    }
+                },
+                view: {
+                    selectedMulti: false,
+                    addDiyDom: function (treeId, treeNode) {
+                        var $aObj = $("#" + treeNode.tId + "_a");
+                        var beforeHtml = "<span>11</span>";
+                        $aObj.children("#" + treeNode.tId + "_span").before(beforeHtml);
+                    }
+                },
+                callback: {
+                    onClick: function (event, treeId, treeNode, clickFlag) {
+                        // console.log(treeNode)
+                        if (treeNode.isParent) { //如果点击的是文件夹
+                            console.log('点击了文件夹' + treeNode.name)
+                        } else { //点击的是文件
+                            console.log('加载' + treeNode.name)
+                        }
+                        //将现有的树转为zNodesData
+                        var pNodesZTree = zTreeObj.getNodes()
+                        var pNodesSimple = [];
+                        for (var i = 0; i < pNodesZTree.length; i++) {
+                            Array.prototype.push.apply(pNodesSimple, zTreeObj.transformToArray(
+                                pNodesZTree[i]))
+                        }
+                        console.log(pNodesSimple)
+                    },
+                    onRemove: function (event, treeId, treeNode) {
+                        if (treeNode.isParent) {
+                            isDeleteDir = true;
+                            console.log('删除文件夹 ', treeNode.name)
+                            //递归删除所有的子节点
+                            for (var i = 0; i < treeNode.children.length; i++) {
+                                zTreeObj.removeNode(treeNode.children[i], true)
+                            }
+                            isDeleteDir = false;
+                        } else {
+                            console.log('删除文件 ' + treeNode.name)
+                        }
+                    },
+                    beforeRemove: function (treeId, treeNode) {
+                        if (treeNode.isParent) {
+                            return confirm('确定删除文件夹 ' + treeNode.name + ' 及其包含的所有文件吗?')
+                        } else {
+                            if (!isDeleteDir) { //如果不是点的删除文件夹触发的删除文件，才给提示，否则，在删除文件夹时已经给过提示，就不再重复提示
+                                return confirm('确定删除文件 ' + treeNode.name + ' 吗？')
+                            }
+                        }
+                    },
+                    beforeRename: function (treeId, treeNode, newName, isCancel) {
+                        if (isCancel) {
+                            return
+                        }
+                        console.log('修改前:' + treeNode.name);
+                        console.log('即将修改为:' + newName); //在此可做判断，是否同意修改
+                        return true;
+                    },
+                    onRename: function (event, treeId, treeNode, isCancel) {
+                        if (isCancel) {
+                            return
+                        }
+                        console.log('修改后' + treeNode.name)
+                    }
+                }
+            }
+            var idCount = 100;
+            $("#btn").on('click', function () {
+                alert('导入 新导入病例')
+                var newCorpusNode = {
+                    AnnoIsComp: 0,
+                    AnnoNum: 0,
+                    CorpusName: "新导入病例",
+                    FileExt: ".txt",
+                    ID: idCount++,
+                    ImportDateTime: "2018-11-28 14:04:18",
+                    ImportUserID: 11,
+                    IsComplete: 0,
+                    Num: 0,
+                    Type: 0,
+                    isParent: false,
+                    open: false,
+                    pId: 0,
+                    name: "新导入病例.txt",
+                }
+                myAddNode(newCorpusNode);
+            })
+            $('#newDir').on('click', function () {
+                var newDirName = prompt('输入新文件夹的名字', '新建文件夹');
+                if (newDirName) {
+                    //用户输入了新文件夹的名字
+                    var newDirNode = {
+                        AnnoIsComp: null,
+                        AnnoNum: null,
+                        CorpusName: null,
+                        FileExt: null,
+                        ID: idCount++,
+                        ImportDateTime: null,
+                        ImportUserID: null,
+                        IsComplete: null,
+                        Num: null,
+                        Type: null,
+                        isParent: true,
+                        open: true,
+                        pId: 0,
+                        name: newDirName
+                    }
+                    myAddNode(newDirNode);
+                }
+            })
+
+            function myAddNode(newNode) {
+                if (zTreeObj.getSelectedNodes().length == 0) {
+                    zTreeObj.addNodes(null, -1, newNode)
+                } else {
+                    var firstSelctedNode = zTreeObj.getSelectedNodes()[0];
+                    if (firstSelctedNode.isParent) {
+                        newNode.pId = firstSelctedNode.ID;
+                        zTreeObj.addNodes(firstSelctedNode, -1, newNode)
+                    } else {
+                        var PNodeOfFirstNode = firstSelctedNode.getParentNode();
+                        if (PNodeOfFirstNode) {
+                            newNode.pId = PNodeOfFirstNode.ID;
+                            zTreeObj.addNodes(PNodeOfFirstNode, -1, newNode)
+                        } else {
+                            zTreeObj.addNodes(null, -1, newNode)
+                        }
+
+                    }
+                    //zTreeObj.addNodes(zTreeObj.getSelectedNodes()[0],-1,newDirName)
+                }
+            }
+            var isDeleteDir = false;
+            var zNodesData = [{
+                AnnoIsComp: 0,
+                AnnoNum: 0,
+                CorpusName: "测试",
+                FileExt: ".txt",
+                ID: 33,
+                ImportDateTime: "2018-11-28 14:04:18",
+                ImportUserID: 11,
+                IsComplete: 0,
+                Num: 0,
+                Type: 0,
+                isParent: false,
+                open: false,
+                pId: 0,
+                name: "测试.txt",
+            }, {
+                AnnoIsComp: null,
+                AnnoNum: null,
+                CorpusName: null,
+                FileExt: null,
+                ID: 1,
+                ImportDateTime: null,
+                ImportUserID: null,
+                IsComplete: null,
+                Num: null,
+                Type: null,
+                isParent: true,
+                open: true,
+                pId: 0,
+                name: '病例文件夹',
+            }, {
+                AnnoIsComp: 0,
+                AnnoNum: 0,
+                CorpusName: "测试病例1",
+                FileExt: ".doc",
+                ID: 30,
+                ImportDateTime: "2018-11-28 14:04:18",
+                ImportUserID: 11,
+                IsComplete: 0,
+                Num: 0,
+                Type: 0,
+                isParent: false,
+                open: false,
+                pId: 1,
+                name: "测试病例1.doc",
+                icon: "../../css/zTreeStyle/img/diy/2.png"
+            }, {
+                AnnoIsComp: 0,
+                AnnoNum: 0,
+                CorpusName: "测试病例2",
+                FileExt: ".txt",
+                ID: 29,
+                ImportDateTime: "2018-11-28 14:04:18",
+                ImportUserID: 11,
+                IsComplete: 0,
+                Num: 0,
+                Type: 0,
+                isParent: false,
+                open: false,
+                pId: 1,
+                name: "测试病例2.txt",
+            }, {
+                AnnoIsComp: null,
+                AnnoNum: null,
+                CorpusName: null,
+                FileExt: null,
+                ID: 2,
+                ImportDateTime: null,
+                ImportUserID: null,
+                IsComplete: null,
+                Num: null,
+                Type: null,
+                isParent: true,
+                open: true,
+                pId: 0,
+                name: '出院记录文件夹',
+            }, {
+                AnnoIsComp: 0,
+                AnnoNum: 0,
+                CorpusName: "出院记录1",
+                FileExt: ".txt",
+                ID: 28,
+                ImportDateTime: "2018-11-28 14:04:18",
+                ImportUserID: 11,
+                IsComplete: 0,
+                Num: 0,
+                Type: 0,
+                isParent: false,
+                open: false,
+                pId: 2,
+                name: "出院记录1.txt",
+            }, {
+                AnnoIsComp: 0,
+                AnnoNum: 0,
+                CorpusName: "出院记录2",
+                FileExt: ".txt",
+                ID: 27,
+                ImportDateTime: "2018-11-28 14:04:18",
+                ImportUserID: 11,
+                IsComplete: 0,
+                Num: 0,
+                Type: 0,
+                isParent: false,
+                open: false,
+                pId: 2,
+                name: "出院记录2.txt",
+            }];
+            var zTreeObj = $.fn.zTree.init($("#treeDemo"), setting, zNodesData);
+            var defaultNodeSel = zTreeObj.getNodeByParam('ID', getZNodeObjByID().ID); //默认查找第一个文本节点
+            zTreeObj.selectNode(defaultNodeSel); //选中该节点
+            zTreeObj.setting.callback.onClick(null, zTreeObj.setting.treeId, defaultNodeSel); //调用点击该节点的事件
+
+            function getZNodeObjByID(ID) {
+                if (!ID) {
+                    for (var i = 0; i < zNodesData.length; i++) {
+                        if (!zNodesData[i].isParent) {
+                            return zNodesData[i];
+                        }
+                    }
+                } else {
+                    for (var i = 0; i < zNodesData.length; i++) {
+                        if (zNodesData[i].ID = ID) {
+                            return zNodesData[i];
+                        }
+                    }
+                }
+                return null;
+            }
+        })
+    </script>
+</body>
+
+</html>
